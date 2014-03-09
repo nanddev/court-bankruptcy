@@ -1,0 +1,121 @@
+body{
+	font-family: Calibri, Arial, Verdana;
+	font-size: 13px;
+	color: #000;
+	margin:0;	
+	background-color:#366092;
+}
+#main
+{
+	width:1024px;
+	margin:0 auto;
+	background-color:#fff;
+}
+.head
+{
+	padding-top:30px;
+	padding-left:20px;
+	color:#F00;
+	font-size: 16px;
+}
+.head_disclaimer
+{
+	padding-top:30px;
+	padding-left:0px;
+	color:#F00;
+	font-size: 16px;
+}
+.login
+{
+	margin-top:50px;
+}
+input
+{
+	border:1px solid #333;
+}
+.search
+{
+	padding:20px;
+}
+.view_client
+{
+	width:60%; float:left;height:60px
+}
+.view_client1
+{
+	width:100%; float:left;height:60px
+}
+.admin-content
+{
+	position:relative;
+	height:auto;
+	width:90%;
+	margin-left:20px;
+}
+.admin-content1
+{
+	position:relative;
+	float:left;
+	height:auto;
+	width:90%;
+	border:1px solid #999;
+	margin-left:20px;
+	background-color:#fff;
+}
+.search_blue
+{
+	background-color:#366092;
+	font-size:16px;
+	color:#FFF;
+	border:1px solid #666;
+	padding:10px;
+}
+a:link {
+	color: #F00;
+	text-decoration: none;
+}
+a:visited {
+	text-decoration: none;
+	color: #F00;
+}
+a:hover {
+	text-decoration: underline;
+	color: #06F;
+}
+a:active {
+	text-decoration: none;
+	color: #F00;
+}
+
+a#print:link {
+	color: Green;
+	text-decoration: underline;
+}
+
+a#print:visited {
+	color: Green;
+	text-decoration: underline;
+}
+
+a#print:hover {
+	color: DarkGreen;
+	text-decoration: underline;
+}
+
+a#print:active {
+	color: DarkGreen;
+	text-decoration: none;
+}
+
+#print-receipt {
+	display: none;
+}
+label.error {
+	display: block;
+	color: crimson;
+	font-weight: bold;
+	font-style: italic;
+}
+input.error, select.error {
+	border: 1px solid crimson;
+}

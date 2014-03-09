@@ -1,0 +1,49 @@
+body {
+	background-color: #ffffff;
+	font-size: 18px;
+}
+
+#print-receipt {
+	text-align: center;
+	width: 600px;
+	margin: 0 auto;
+	display: block;
+}
+
+#print-receipt h1 {
+	text-align: center;
+}
+
+#print-receipt h2 {
+	text-align: center;
+}
+
+.bankruptcy-details {
+	text-align: left;
+}
+
+.bankruptcy-details h3 {
+	font-style: italic;
+	margin-bottom: 0;
+}
+
+.bankruptcy-details span {
+	
+}
+
+.billing-details {
+	text-align: left;
+}
+
+.billing-details h3 {
+	font-style: italic;
+	margin-bottom: 0;
+}
+
+.billing-details span {
+
+}
+
+#main {
+	display: none;
+}

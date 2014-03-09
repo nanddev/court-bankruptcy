@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /timepay/
+Disallow: /paymyfine/
+Disallow: /bankruptcy/
+Disallow: /warrant/

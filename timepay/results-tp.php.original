@@ -1,0 +1,265 @@
+<?php
+session_start();
+include("../includes/dbinfo-pdo.php");
+$Last_Name=addslashes($_REQUEST['Last_Name']);
+$Date_of_Birth=addslashes($_REQUEST['Date_of_Birth']);
+$Date_of_Birth = date('m/d/y', strtotime($Date_of_Birth));  
+
+if(!isset($_SESSION['sesid'])) {
+	$_SESSION['sesid']=session_id();
+	$ct_session_id=session_id();
+}
+else {
+	$ct_session_id=$_SESSION['sesid'];
+}
+
+?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Online Court Payment System Demo</title>
+<link rel="stylesheet" type="text/css" href="/css/style.css" />
+<script type="text/javascript">
+	function validate_form2() {
+	  	if(document.form1.Last_Name.value=="") {
+	    		alert("Please enter your Last Name");
+	    		document.form1.Last_Name.focus();
+	    		return false;
+	  	}
+      		if(document.form1.Date_of_Birth.value=="") {
+	   		alert("Please enter your Date of Birth");
+	   		document.form.Date_of_Birth.focus();
+	   		return false;
+  		}
+   		return true;
+	}
+</script>
+<script type="text/javascript">
+	function addpayment_validate(value) {
+		document.resultform2.action="results-tp.php?Last_Name=<?=$Last_Name?>&Date_of_Birth=<?=$Date_of_Birth?>&msg=5";
+		document.resultform2.Addpayment_Submit.value='Addpayment';
+		document.resultform2.cart_id.value=value;	
+		document.resultform2.submit();
+		return true;
+	}
+</script>
+
+</head>
+
+
+<?php
+if($_REQUEST['Addpayment_Submit']=='Addpayment') {
+ 
+	$product_id=$_REQUEST['cart_id'];
+ 
+	$ct_date=date("Y-m-d");
+	$select_citation_addcart=$db->query("select * from timepay where id='$product_id'");
+	$select_citation_addcart_num=$select_citation_addcart->rowCount();  
+	$select_citation_addcart_row=$select_citation_addcart->fetch(PDO::FETCH_BOTH);
+	if($select_citation_addcart_num>0) {
+		if(true) {
+			$check_mysql_cart=$db->query("select * from timepay_cart_temp where product_id='$product_id' and ct_session_id='$ct_session_id'");
+			$check_mysql_cart_num=$check_mysql_cart->rowCount();
+
+			if(!$check_mysql_cart_num>0) {
+				$insert_payment_cart=$db->query("insert into timepay_cart_temp(product_id,ct_session_id,ct_date) values ('$product_id','$ct_session_id','$ct_date')");
+	         		header("location:results-tp.php?Last_Name=$Last_Name&Date_of_Birth=$Date_of_Birth&msg=3&ct_session_id=$ct_session_id");
+		  	} else {
+		  		$delete_payment_cart=$db->query("delete from timepay_cart_temp where product_id='$product_id' and ct_session_id='$ct_session_id'");
+		   		header("location:results-tp.php?Last_Name=$Last_Name&Date_of_Birth=$Date_of_Birth&msg=2&ct_session_id=$ct_session_id");
+		  	}
+	 	} else {
+			header("location:results-tp.php?Last_Name=$Last_Name&Date_of_Birth=$Date_of_Birth&msg=1");
+	 	}
+	}	  
+}
+?>
+
+
+
+<?php
+      
+if(!empty($Last_Name) || !empty($Date_of_Birth)) 
+{
+  
+	$search_query= "select * from timepay where id!='' AND (First_Name like '$Last_Name' or Last_Name like '$Last_Name')";
+	$search_query .= " AND Date_of_Birth like '$Date_of_Birth'";
+
+	try {
+		$search_query_result=$db->query($search_query);
+	} catch (PDOException $e) {
+		echo $e->getMessage();
+	}
+
+	$search_query_result_count=$search_query_result->rowCount();
+}
+
+if($_REQUEST['Search_form']=='Search') 
+{
+  
+	$delete_citation_cart_temp=$db->query("delete from timepay_cart_temp where ct_session_id ='$ct_session_id '");
+	$search_query= "select * from timepay where id!='' ";
+	$search_query .= "AND (First_Name like '$Last_Name' or Last_Name like '$Last_Name')";
+	$search_query .= " AND Date_of_Birth like '$Date_of_Birth'";
+
+	try {
+		$search_query_result=$db->query($search_query);
+	} catch (PDOException $e) {
+		echo $e->getMessage();
+	}
+	$search_query_result_count=$search_query_result->rowCount();
+}
+
+?>
+
+<?
+try {
+	$check_mysql_cart_status=$db->query("select * from timepay_cart_temp where ct_session_id='$ct_session_id'");
+} catch (PDOException $e) {
+	$e->getMessage();
+}
+	$check_mysql_cart_status_num=$check_mysql_cart_status->rowCount();
+?>
+
+<body>
+<div id="main"><div class="head">
+<!--<div style="width:20%; float:left" >Pay Your Citation </div> -->        
+
+<div align="right" style="width:70%; float:left" ><!--       Para Espanol, pulse aqui.<br /> -->
+<u><a href="index.php">Home</a></u></div>
+
+
+</div>
+<div class="login">
+
+<p align="center"><!--h2 style="color: red;">If you did not make a payment in April do not proceed until you contact 877-689-5144.  If you do not have permission to pay late your payment will be voided.</h2--></p>
+<p align="center">Complete at least two data fields below to find your ticket
+</p>
+
+<div style="width:30%; float:left"  align="right"><img src="" width="165" height="123" /> </div>                
+<div align="left" style="width:50%; float:left; margin-left:20px;" >
+  <form name="form1" id="form1" method="post" action="results-tp.php">
+  <table width="90%" border="0" cellspacing="6" cellpadding="6" 
+style="border:1px solid #333">
+  <tr>
+    <td>Last Name</td>
+    <td><label for="textfield"></label>
+      <input type="text" name="Last_Name" id="textfield" value="<?php echo $_REQUEST['Last_Name'];?>" /></td>
+  </tr>
+  <tr>
+    <td>Date of Birth</td>
+    <td> <input type="text" name="Date_of_Birth" id="textfield" value="<?php echo $_REQUEST['Date_of_Birth'];?>" /><br />
+	"Please enter date example<br />
+	(MONTH/DAY/YEAR) : 4/6/1966"</td>
+  </tr>
+  <tr>
+    <td><strong style="color:#F00">Help</strong></td>
+    <td><input type="submit" name="Search_form" id="Search_form" value="Search" onclick="return validate_form2();" /></td>
+  </tr>
+</table>
+  </form>
+</div>
+
+
+</div>
+<div style="clear:both"></div>
+<div class="search" align="center">
+<?php
+if($search_query_result_count>0)
+  {
+   if($check_mysql_cart_status_num>0)
+	{
+  ?>
+   
+  <a href="checkout-tp.php?Last_Name=<?=$Last_Name?>&Date_of_Birth=<?=$Date_of_Birth?>&back_page=results-tp.php"><img src="/css/images/but.png" width="129" height="49" border="0" /></a>
+   
+<?php 
+}
+if($_REQUEST['msg']=='1')
+{
+?>
+ <br><div align="center" style="color:#FF0000;font-size:18px;">"This contract cannot be paid online. You must make a court appearance,<br>please refer any additional questions to the Clerk of Court or call +1-877-689-5144"</div>
+<?php
+}
+?>
+<form name="resultform2" id="resultform2" method="post" action="">
+<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+  <tr bgcolor="#366092" style="color:#FFF;" align="center">
+    <td width="17%">Timepay Contract Number</td>
+    <td width="15%">Name</td>
+    <td width="23%">Jurisdiction</td>
+    <td width="14%">Minimum Payment</td>
+    <td>Charges</td>
+  <td>Select To Pay</td>
+  </tr>
+
+  <?php
+  
+  while($search_query_result_row=$search_query_result->fetch(PDO::FETCH_BOTH))
+  {
+  
+      
+      $product_cart_id=$search_query_result_row['id'];
+try {
+	  $product_cart_added_check=$db->query("select * from timepay_cart_temp where product_id='$product_cart_id' and ct_session_id='$ct_session_id'");
+} catch (PDOException $e) {
+	echo $e->getMessage();
+}
+      $product_cart_added_num=$product_cart_added_check->rowCount();
+	  if($product_cart_added_num>0)
+	  {
+		    $product_cart_added="checked";
+	  }
+	  else
+	  {
+	   		$product_cart_added="";
+
+	  }
+  ?>
+  <tr>
+    <td><?php echo stripslashes($search_query_result_row['Contract_Num']);?></td>
+    <td><?php echo stripslashes($search_query_result_row['Last_Name']); echo ', '; echo stripslashes($search_query_result_row['First_Name']); ?></td>
+    <td><?php echo stripslashes($search_query_result_row['Jurisdiction']);?></td>
+    <td><?php echo '$' . number_format(stripslashes($search_query_result_row['Min_Payment']), 2); ?></td>
+    <td width="20%"><?php echo stripslashes($search_query_result_row['Charges']);?></td>
+  <td width="11%"><input type="checkbox" name="checkbox" value="checkbox" onclick="return addpayment_validate('<?=$search_query_result_row['id']?>');" <?php echo $product_cart_added; ?> /></td>
+  </tr>
+  
+  <?php
+  }
+ 
+  ?>
+</table>
+<br />
+<table width="80%"  border="0" cellspacing="2" cellpadding="2">
+  <tr>
+    <td align="right"><a href="#" style="font-size:16px;color:#FF0000;">Add Another Contract</a></td>
+  </tr>
+</table>
+
+ <input type="hidden" name="cart_id" id="cart_id" />
+ <input type="hidden" name="Addpayment_Submit" id="Addpayment_Submit" />
+
+</form>
+<?php
+}
+else
+{
+?>
+<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+  
+  <tr>
+    <td>Results Not Found Please Modify your Search <a href="timepay/index.php">Back</a></td>
+    </tr>
+  
+</table>
+<?php
+}
+?>
+</div>
+<div align="center" style=" padding:80px;">All rights reserved. 2012 <a href="../disclaimer.php">Disclaimer </a></div>
+</div>
+
+</body>
+</html>
