@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 		<script type="text/javascript" src="/js/lib/jquery-1.11.0.min.js"></script>
 		<script type="text/javascript" src="/js/lib/jquery.tooltip.js"></script>
 		<script type="text/javascript" src="/js/lib/jquery.validate.min.js"></script>
-		<script type="text/javascript" src="/js/validate.js"></script>
+		<script type="text/javascript" src="/js/search-validate.js"></script>
 		<script type="text/javascript">
 			$(document).ready(function(){
 				$("div.item").tooltip();

@@ -17,12 +17,12 @@ $Auth = new Auth();
 	div.item { text-align: center; padding-top: 0px; }
 	div#item_1 { position: relative; left: -45px; }
 </style>
-<link rel="stylesheet" href="/css/tyle.css type="text/css" />
+<link rel="stylesheet" href="/css/tyle.css" type="text/css" />
 <link rel="stylesheet" href="/css/jquery.tooltip.css" type="text/css" />
 <script type="text/javascript" src="/js/lib/jquery-1.11.0.min.js"></script>
 <script type="text/javascript" src="/js/lib/jquery.tooltip.js"></script>
 <script type="text/javascript" src="/js/lib/jquery.validate.min.js"></script>
-<script type="text/javascript" src="/js/validate.js"></script>
+<script type="text/javascript" src="/js/search-validate.js"></script>
 <script type="text/javascript">
 	$(document).ready(function(){
 		$("div.item").tooltip();

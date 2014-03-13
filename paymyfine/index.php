@@ -22,8 +22,8 @@ $Auth = new Auth();
 		<script type="text/javascript" src="/js/lib/jquery-1.11.0.min.js"></script>
 		<script type="text/javascript" src="/js/lib/jquery.tooltip.js"></script>
 		<script type="text/javascript" src="/js/lib/jquery.validate.min.js"></script>
-		<script type="text/javascript" src="/js/lib/jquery.formShowHide.js"></script>
-		<script type="text/javascript" src="/js/validate.js"></script>
+		<script type="text/javascript" src="/js/lib/jquery.showhide-rules-1.2.js"></script>
+		<script type="text/javascript" src="/js/search-validate.js"></script>
 		<script type="text/javascript">
 			$(document).ready(function(){
 				$("div.item").tooltip();
@@ -52,55 +52,52 @@ $Auth = new Auth();
 									<label for="courtId">Which court has your record?*</label>
 								</td>
 								<td width="60%">
-									<select id="courtId" name="courtId" class="show-hide">
-										<option value="" data-hide-id="knowsCitation lastName dob citation">Select</option>	
-										<option value="21" data-show-id="knowsCitation">Benton County, Cave Springs</option>
-										<option value="9" data-show-id="knowsCitation">Benton County, Pea Ridge</option>
-										<option value="22" data-show-id="knowsCitation">Marion County District Court</option>
-										<option value="20" data-show-id="knowsCitation">Monroe County, Clarendon</option>
-										<option value="14" data-show-id="knowsCitation">Monroe County, Brinkley</option>
-										<option value="13" data-show-id="knowsCitation">Ouachita County, Camden</option>
-										<option value="10" data-show-id="knowsCitation">Pulaski County, Sherwood</option>
-										<option value="17" data-show-id="knowsCitation">Saline County, Bryant</option>
-										<option value="12" data-show-id="knowsCitation">Saline County, Haskell</option>
-										<option value="19" data-show-id="knowsCitation">Saline County, Shannon Hills</option>
-										<option value="11" data-show-id="knowsCitation">White County, Beebe</option>
-										<option value="18" data-show-id="knowsCitation">White County, McRae</option>
+									<select id="courtId" name="courtId" class="sh-parent-item" required title="Please choose which court your record belongs to.">
+										<option value="Select">Select</option>	
+										<option value="21">Benton County, Cave Springs</option>
+										<option value="9">Benton County, Pea Ridge</option>
+										<option value="22">Marion County District Court</option>
+										<option value="20">Monroe County, Clarendon</option>
+										<option value="14">Monroe County, Brinkley</option>
+										<option value="13">Ouachita County, Camden</option>
+										<option value="10">Pulaski County, Sherwood</option>
+										<option value="17">Saline County, Bryant</option>
+										<option value="12">Saline County, Haskell</option>
+										<option value="19">Saline County, Shannon Hills</option>
+										<option value="11">White County, Beebe</option>
+										<option value="18">White County, McRae</option>
 									</select>
 								</td>
 							</tr>
-							<tr>
+							<tr id="knowsCitationRow" class="sh-child" data-showhide='{ "dependencies": "NOT_courtId_VAL_Select" }'>
 								<td valign="top">
 									<label for="knowsCitation">Do you know your citation number?*</label>
 								</td>
 								<td>
-									<select id="knowsCitation" name="knowsCitation" class="show-hide">
+									<select id="knowsCitation" name="knowsCitation" required title="Please specify if you know your citation number.">
 										<option value="">Select</option>	
-										<option data-show-id="citation">Yes</option>
-										<option data-show-id="lastName dob">No</option>
+										<option>Yes</option>
+										<option selected>No</option>
 									</select>
 								</td>
 							</tr>
-							<tr>
+							<tr id="lastNameRow" class="sh-child" data-showhide='{ "dependencies": "knowsCitation_VAL_No_AND_NOT_courtId_VAL_Select" }'>
 								<td valign="top">
 									<label for="lastName">What is your last name?</label>
 								</td>
 								<td>
-									<input type="text" name="lastName" id="lastName" />
+									<input type="text" name="lastName" id="lastName" placeholder="Last name" title="Please enter your last name." />
 								</td>
 							</tr>
-							<tr>
+							<tr id="dobRow" class="sh-child" data-showhide='{ "dependencies": "knowsCitation_VAL_No_AND_NOT_courtId_VAL_Select" }'>
 								<td align="left" valign="top">
 									<label for="dob">What is your date of birth?</label>
 								</td>
 								<td align="left" valign="top">
-									<input type="text" name="dob" id="dob" />
-									<br />
-									"Please enter date example<br />
-									(MONTH/DAY/YEAR): 4/6/1966"
+									<input type="date" name="dob" id="dob" title="Please enter your date of birth." />
 								</td>
 							</tr>
-							<tr>
+							<tr id="citationRow" class="sh-child" data-showhide='{ "dependencies": "knowsCitation_VAL_Yes_AND_NOT_courtId_VAL_Select" }'>
 								<td valign="top">
 									<label for="citation">What is your citation number?</label>
 								</td>

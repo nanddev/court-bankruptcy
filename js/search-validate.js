@@ -2,10 +2,12 @@
 	$(document).ready(function() {
 		// Validate the form
 		$('#form').validate({
-			debug: true,
+			focusCleanup: true,
+			focusInvalid: false,
 			rules: {
 				courtId: {
-					required: true
+					required: true,
+					digits: true
 				},
 				knowsCitation: {
 					required: true
@@ -30,7 +32,7 @@
 		}); 
 
 		// Setup the show/hide functionality
-		$('.show-hide').formShowHide();
+		$('body').showhide({ 'inline': true });
 	});
 
 	var doesntKnowCitation = function() {
