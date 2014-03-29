@@ -6,7 +6,10 @@ include($_SERVER['DOCUMENT_ROOT'] . "/includes/Auth.php");
 
 $Auth = new Auth();
 
+$courtId = (isset($_REQUEST['courtId']) ? htmlentities($_REQUEST['courtId']) : "");
+$knowsCitation = (isset($_REQUEST['knowsCitation']) ? htmlentities($_REQUEST['knowsCitation']) : "");
 $lastName = (isset($_REQUEST['lastName']) ? htmlentities($_REQUEST['lastName']) : "");
+$citation = (isset($_REQUEST['citation']) ? htmlentities($_REQUEST['citation']) : "");
 
 if (isset($_REQUEST['dob']) && strtolower($_REQUEST['dob']) != "null") {
 	$dob = date('m/d/y', strtotime(htmlentities($_REQUEST['dob'])));  
@@ -19,17 +22,43 @@ if (!isset($_SESSION['sesid'])) {
 	$_SESSION['sesid'] = session_id();
 }
 
+$courts = array(
+	'21' => 'Benton County, Cave Springs',
+	'9' => 'Benton County, Pea Ridge',
+	'22' => 'Marion County District Court',
+	'20' => 'Monroe County, Clarendon',
+	'14' => 'Monroe County, Brinkley',
+	'13' => 'Ouachita County, Camden',
+	'10' => 'Pulaski County, Sherwood',
+	'17' => 'Saline County, Bryant',
+	'12' => 'Saline County, Haskell',
+	'19' => 'Saline County, Shannon Hills',
+	'11' => 'White County, Beebe',
+	'18' => 'White County, McRae'
+);
+
+$hasWarrant = false;
+$hasTimepay = false;
+$hasCitation = false;
+
+echo '<pre>';
+echo var_dump($courtId, $lastName, $citation, $dob);
+echo '</pre>';
+//exit;
+
 if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 
 	try {
-		$query = "select * from (select *, CASE WHEN contract_num = '' THEN 1 ELSE 0 END as IsCitation, CASE WHEN contract_num = '' THEN 0 ELSE 1 END as IsTimepay, 0 as IsWarrant from citation_test where (last_name = :last_name1 or first_name = :first_name1) and date_of_birth = :dob1 and status = 'A' and fine_amount != '0' union all select *, 0 as IsCitation, 0 as IsTimepay, 1 as IsWarrant from warrant_test where (last_name = :last_name2 or first_name = :first_name2) and date_of_birth = :dob2 and status = 'A' and fine_amount != '0') t order by IsWarrant DESC, IsTimepay DESC, IsCitation DESC;";
+		$query = "select * from (select *, CASE WHEN contract_num = '' THEN 1 ELSE 0 END as IsCitation, CASE WHEN contract_num = '' THEN 0 ELSE 1 END as IsTimepay, 0 as IsWarrant from citation_test where CID = :cid1 and (last_name = :last_name1 or first_name = :first_name1) and date_of_birth = :dob1 and status = 'A' and fine_amount != '0' union all select *, 0 as IsCitation, 0 as IsTimepay, 1 as IsWarrant from warrant_test where CID = :cid2 and (last_name = :last_name2 or first_name = :first_name2) and date_of_birth = :dob2 and status = 'A' and fine_amount != '0') t order by IsWarrant DESC, IsTimepay DESC, IsCitation DESC;";
 
 		$sth = $db->prepare($query);
 		$sth->execute(
 			array(
+				':cid1' => $courtId,
 				':last_name1' => $lastName,
 				':first_name1' => $lastName,
 				':dob1' => $dob,
+				':cid2' => $courtId,
 				':last_name2' => $lastName,
 				':first_name2' => $lastName,
 				':dob2' => $dob
@@ -38,9 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 		$searchResults = $sth->fetchAll(PDO::FETCH_ASSOC);
 		$searchResultsCount = count($searchResults);
 
-		//echo '<pre>';
-		//echo var_dump($searchResultsCount, $searchResults, isset($searchResults[0]['IsWarrant']), $searchResults[0]['IsWarrant']);
-		//echo '</pre>';
+		echo '<pre>';
+		echo var_dump($searchResultsCount, $searchResults, isset($searchResults[0]['IsWarrant']), $searchResults[0]['IsWarrant']);
+		echo '</pre>';
 		//exit;
 
 		// Is this a warrant?
@@ -84,25 +113,12 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 		<script type="text/javascript" src="/js/lib/jquery-1.11.0.min.js"></script>
 		<script type="text/javascript" src="/js/lib/jquery.tooltip.js"></script>
 		<script type="text/javascript" src="/js/lib/jquery.validate.min.js"></script>
+		<script type="text/javascript" src="/js/lib/jquery.showhide-rules-1.2.js"></script>
 		<script type="text/javascript" src="/js/search-validate.js"></script>
 		<script type="text/javascript">
 			$(document).ready(function(){
 				$("div.item").tooltip();
 			});
-			function validate_form2() {
-				if(document.form1.lastName.value=="") {
-					alert("Please enter your Last Name");
-					document.form1.lastName.focus();
-					return false;
-				}
-				if(document.form1.dob.value=="") {
-					alert("Please enter your Date of Birth");
-					document.form1.dob.focus();
-					return false;
-				} 
-
-				return true;
-			}
 		</script>
 	</head>
 	<body>
@@ -125,24 +141,42 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 									<label for="courtId">Which court has your record?</label>
 								</td>
 								<td width="60%">
-									<select id="courtId" name="courtId">
-										<option value="">Select</option>	
-										<option>Court Name</option>
+									<select id="courtId" name="courtId" class="sh-parent-item" required title="Please choose which court your record belongs to.">
+										<option value="Select">Select</option>	
+										<?php
+										foreach ($courts as $id => $name) {
+											if (isset($_REQUEST['courtId']) && htmlentities($_REQUEST['courtId']) == $id) {
+												echo "<option value=\"$id\" selected>$name</option>";
+											}
+											else {
+												echo "<option value=\"$id\">$name</option>";
+											}
+										}
+										?>
 									</select>
 								</td>
 							</tr>
-							<tr>
+							<tr id="knowsCitationRow" class="sh-child" data-showhide='{ "dependencies": "NOT_courtId_VAL_Select" }'>
 								<td>
 									<label for="knowsCitation">Do you know your citation number?</label>
 								</td>
 								<td>
-									<select id="knowsCitation" name="knowsCitation">
-										<option value="">Select</option>	
-										<option>Yes</option>
-										<option>No</option>
+									<select id="knowsCitation" name="knowsCitation" required title="Please specify if you know your citation number.">
+										<option value="">Select</option>
+										<?php
+										foreach (array("Yes", "No") as $value) {
+											if (isset($_REQUEST['knowsCitation']) && htmlentities($_REQUEST['knowsCitation']) == $value) {
+												echo "<option selected>$value</option>";
+											}
+											else {
+												echo "<option>$value</option>";
+											}
+										}
+										?>
 									</select>
 								</td>
 							</tr>
+							<tr id="lastNameRow" class="sh-child" data-showhide='{ "dependencies": "knowsCitation_VAL_No_AND_NOT_courtId_VAL_Select" }'>
 								<td>
 									<label for="lastName">What is your last name?</label>
 								</td>
@@ -150,15 +184,20 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 									<input type="text" name="lastName" id="textfield" value="<?php echo (isset($_REQUEST['lastName']) ? htmlentities($_REQUEST['lastName']) : "");?>" />
 								</td>
 							</tr>
-							<tr>
+							<tr id="dobRow" class="sh-child" data-showhide='{ "dependencies": "knowsCitation_VAL_No_AND_NOT_courtId_VAL_Select" }'>
 								<td align="left" valign="top">
 									<label for="dob">What is your date of birth?</label>
 								</td>
 								<td align="left" valign="top">
-									<input type="text" name="dob" id="textfield" value="<?php echo (isset($_REQUEST['dob']) ? htmlentities($_REQUEST['dob']) : ""); ?>" />
-									<br />
-									"Please enter date example<br />
-									(MONTH/DAY/YEAR) : 4/8/1972"
+									<input type="date" name="dob" id="dob" title="Please enter your date of birth." value="<?php echo (isset($_REQUEST['dob']) ? htmlentities($_REQUEST['dob']) : ""); ?>" placeholder="mm/dd/yyyy" />
+								</td>
+							</tr>
+							<tr id="citationRow" class="sh-child" data-showhide='{ "dependencies": "knowsCitation_VAL_Yes_AND_NOT_courtId_VAL_Select" }'>
+								<td valign="top">
+									<label for="citation">What is your citation number?</label>
+								</td>
+								<td>
+									<input type="text" name="citation" id="citation" value="<?php echo (isset($_REQUEST['citation']) ? htmlentities($_REQUEST['citation']) : "");?>" />
 								</td>
 							</tr>
 							<tr>
@@ -166,7 +205,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 									<div id="item_1" class="item">
 										<strong style="color:#F00">Help</strong>
 										<div class="tooltip_description" style="display:none" title="" align="center">
-											Customer Support <br /><b>867-5309<br />Email us: demoemail@nanddevelopment.com</b>
+											Customer Support <br />
+											<b>867-5309<br />Email us: demoemail@nanddevelopment.com</b>
 										</div>
 									</div>
 								</td>
@@ -183,12 +223,12 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 				<form method="post" action="checkout.php">
 					<?php
 						if ($searchResultsCount > 0) {
-						echo <<< BUT
-						<input type="submit" id="checkout" value="" />
-	BUT;
+							echo <<< BUT
+								<input type="submit" id="checkout" value="" />
+BUT;
 
-						echo <<< MSG
-						<h3>You must pay off all citations or timepay contracts asociated with this warrant. If you see any citations that you know you don't have to pay, then please call us at 1-877-689-5144.</h3>
+							echo <<< MSG
+								<h3>You must pay off all citations or timepay contracts asociated with this warrant. If you see any citations that you know you don't have to pay, then please call us at 867-5309.</h3>
 MSG;
 //'
 					?>
@@ -212,7 +252,7 @@ MSG;
 
 							echo <<< AAA
 								<tr>
-									<td>${row['lastName']}, ${row['First_Name']}</td>
+									<td>${row['Last_Name']}, ${row['First_Name']}</td>
 									<td>${row['Citation_Number']}</td>
 									<td>${row['Case_Number']}</td>
 									<td>${row['Violation_Date']}</td>
@@ -261,7 +301,13 @@ CCC;
 
 					<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
 						<tr>
-							<td>No warrants were found.</td>
+							<td>
+								<p>
+									<?php
+										echo "No records were found for that person in $courts[$courtId].";
+									?>
+								</p>
+							</td>
 						</tr>
 					</table>
 					<?php
