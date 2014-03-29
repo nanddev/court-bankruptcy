@@ -41,9 +41,9 @@ $hasWarrant = false;
 $hasTimepay = false;
 $hasCitation = false;
 
-echo '<pre>';
-echo var_dump($courtId, $lastName, $citation, $dob);
-echo '</pre>';
+//echo '<pre>';
+//echo var_dump($courtId, $lastName, $citation, $dob);
+//echo '</pre>';
 //exit;
 
 if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
@@ -67,9 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 		$searchResults = $sth->fetchAll(PDO::FETCH_ASSOC);
 		$searchResultsCount = count($searchResults);
 
-		echo '<pre>';
-		echo var_dump($searchResultsCount, $searchResults, isset($searchResults[0]['IsWarrant']), $searchResults[0]['IsWarrant']);
-		echo '</pre>';
+		//echo '<pre>';
+		//echo var_dump($searchResultsCount, $searchResults, isset($searchResults[0]['IsWarrant']), $searchResults[0]['IsWarrant']);
+		//echo '</pre>';
 		//exit;
 
 		// Is this a warrant?
@@ -166,6 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 										<?php
 										foreach (array("Yes", "No") as $value) {
 											if (isset($_REQUEST['knowsCitation']) && htmlentities($_REQUEST['knowsCitation']) == $value) {
+												echo "<option selected>$value</option>";
+											}
+											else if(!isset($_REQUEST['knowscitation']) && $value == 'No') {
 												echo "<option selected>$value</option>";
 											}
 											else {
