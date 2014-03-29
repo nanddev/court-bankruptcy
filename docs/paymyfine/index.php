@@ -94,7 +94,7 @@ $Auth = new Auth();
 									<label for="dob">What is your date of birth?</label>
 								</td>
 								<td align="left" valign="top">
-									<input type="date" name="dob" id="dob" title="Please enter your date of birth." />
+									<input type="date" name="dob" id="dob" title="Please enter your date of birth." placeholder="mm/dd/yyyy" />
 								</td>
 							</tr>
 							<tr id="citationRow" class="sh-child" data-showhide='{ "dependencies": "knowsCitation_VAL_Yes_AND_NOT_courtId_VAL_Select" }'>
