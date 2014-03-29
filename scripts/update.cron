@@ -1,0 +1,1 @@
+15 4 * * * /var/www/court.nanddevelopment.com/scripts/update.sh

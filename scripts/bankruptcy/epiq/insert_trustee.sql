@@ -1,0 +1,1 @@
+INSERT INTO TRUSTEES (trustee_id, trustee_name, trustee_addr_1, trustee_addr_2, trustee_city, trustee_state, trustee_zip, trustee_title) VALUES (00, 'JOHN A. TRUSTEE', '501 KANSAS AVE', 'PO BOX 30', 'KANSAS CITY', 'KS', 66105, 'CHAPTER 13 STANDING TRUSTEE');
