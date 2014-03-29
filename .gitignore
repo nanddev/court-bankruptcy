@@ -1,0 +1,8 @@
+# We don't want to store the court data in the repo
+data/
+
+# We don't need to store htpasswd files in the repo
+security/
+
+# We don't want vim .swp files in the repo
+*.swp
