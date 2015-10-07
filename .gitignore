@@ -6,3 +6,6 @@ security/
 
 # We don't want vim .swp files in the repo
 *.swp
+
+# Don't track .tar.gz files
+*.tar.gz

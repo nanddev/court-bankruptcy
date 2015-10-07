@@ -4,7 +4,7 @@ session_start();
 include($_SERVER['DOCUMENT_ROOT'] . "/includes/dbinfo-pdo.php");
 include($_SERVER['DOCUMENT_ROOT'] . "/includes/Auth.php");
 
-$Auth = new Auth();
+$auth = new Auth();
 
 $courtId = (isset($_REQUEST['courtId']) ? htmlentities($_REQUEST['courtId']) : "");
 $knowsCitation = (isset($_REQUEST['knowsCitation']) ? htmlentities($_REQUEST['knowsCitation']) : "");
@@ -37,19 +37,252 @@ $courts = array(
 	'18' => 'White County, McRae'
 );
 
-$hasWarrant = false;
-$hasTimepay = false;
-$hasCitation = false;
+$_SESSION['IsWarrant'] = false;
+$_SESSION['IsTimepay'] = false;
+$_SESSION['IsCitation'] = false;
+$searchResultsCount = 0;
 
-//echo '<pre>';
-//echo var_dump($courtId, $lastName, $citation, $dob);
-//echo '</pre>';
-//exit;
+// This is used to figure out if the person can pay for their record
+function canPay($row, $auth) {
+	$canPayMessage = '';
+
+	switch($row['CID']) { 
+		case '9': 
+			$canPayMessage = "For Benton County, Pea Ridge please call 479-451-1101";
+			break;
+		case '11': 
+			$canPayMessage = "For White County, Beebe please call 501-882-8110";
+			break;
+		case '13':
+			$canPayMessage = "For Ouachita County, Camden please call 870-836-0331";
+			break;
+		case '21': 
+			if (!$auth->isAdmin()) {
+				$canPayMessage = "For Benton County, Cave Springs please call 1-877-689-5144";
+				break;
+			}
+		default: 
+			$isEnabled = (($auth->isAdmin() || $_SESSION['IsWarrant'] != true) ? "" : "disabled");
+
+			$canPayMessage = <<<PAY
+				<input class="paying" type="checkbox" name="isPaying[${row['id']}]" value="true" $isEnabled checked />
+PAY;
+	}
+
+	return $canPayMessage;
+}
+
+// This will display a message to the user based on the type of record found.
+function getMessage() {
+
+	if ($_SESSION['IsWarrant']) {
+		$message = "You must pay off all citations or timepay contracts asociated with this warrant. If you see any citations that you know you don't have to pay, then please call us at 867-5309.";
+	}
+	else if ($_SESSION['IsTimepay']) {
+		$message = "Please select your timepay contract.";
+	}
+	else if ($_SESSION['IsCitation']) {
+		$message = "Please select the citations you wish to pay.";
+	}
+	else {
+		$message = "";
+	}
+
+	return "<h3>$message</h3>";
+}
+
+// This will generate the table of records to pay based on type of record found.
+function getTable($searchResults, $auth, $courts) {
+	$table = "";
+
+	// Make sure we have some type of record
+	if (count($searchResults) > 0) {
+
+		// Display the records differently based on their type
+		if ($_SESSION['IsWarrant']) {
+			$table = <<<HED
+				<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+					<tr bgcolor="#366092" style="color:#FFF;" align="center">
+						<td>Name</td>
+						<td>Citation Number</td>
+						<td>Case Number</td>
+						<td>Violation Date</td>
+						<td>Court Date</td>
+						<td>Charges</td>
+						<td>Fine Amount</td>
+						<td>Select To Pay</td>
+					</tr>
+HED;
+
+			foreach ($searchResults as $index => $row) {
+
+				$courtDate = ($row['Court_Date'] != '' ? $row['Court_Date'] : 'N/A');
+
+				$table .= <<<ROW
+					<tr>
+						<td>${row['Last_Name']}, ${row['First_Name']}</td>
+						<td>${row['Citation_Number']}</td>
+						<td>${row['Case_Number']}</td>
+						<td>${row['Violation_Date']}</td>
+						<td>$courtDate</td>
+						<td>${row['Charges']}</td>
+						<td>\$${row['Fine_Amount']}</td>
+						<td>
+ROW;
+				$table .= canPay($row, $auth);
+
+				$table .= <<<CCC
+						</td>
+					</tr>
+CCC;
+			}
+		}
+		// Display Timepay format if this only has timepay records
+		else if ($_SESSION['IsTimepay']) {
+			$table = <<<HED
+				<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+					<tr bgcolor="#366092" style="color:#FFF;" align="center">
+						<td>Name</td>
+						<td>Contract Number</td>
+						<td>Jurisdiction</td>
+						<td>Minimum Payment</td>
+						<td>Charges</td>
+						<td>Select To Pay</td>
+					</tr>
+HED;
+
+			foreach ($searchResults as $index => $row) {
+
+				$courtDate = ($row['Court_Date'] != '' ? $row['Court_Date'] : 'N/A');
+
+				$table .= <<<ROW
+					<tr>
+						<td>${row['Last_Name']}, ${row['First_Name']}</td>
+						<td>${row['Contract_Num']}</td>
+						<td>${row['Jurisdiction']}</td>
+						<td>\$${row['Min_Payment']}</td>
+						<td>${row['ChargesList']}</td>
+						<td>
+ROW;
+				$table .= canPay($row, $auth);
+
+				$table .= <<<CCC
+						</td>
+					</tr>
+CCC;
+			}
+		}
+		// Display Citation format if this is only has citation records
+		else if ($_SESSION['IsCitation']) {
+			$table = <<<HED
+				<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+					<tr bgcolor="#366092" style="color:#FFF;" align="center">
+						<td>Name</td>
+						<td>Citation Number</td>
+						<td>Case Number</td>
+						<td>Violation Date</td>
+						<td>Court Date</td>
+						<td>Charges</td>
+						<td>Fine Amount</td>
+						<td>Select To Pay</td>
+					</tr>
+HED;
+
+			foreach ($searchResults as $index => $row) {
+
+				$courtDate = ($row['Court_Date'] != '' ? $row['Court_Date'] : 'N/A');
+
+				$table .= <<<ROW
+					<tr>
+						<td>${row['Last_Name']}, ${row['First_Name']}</td>
+						<td>${row['Citation_Number']}</td>
+						<td>${row['Case_Number']}</td>
+						<td>${row['Violation_Date']}</td>
+						<td>$courtDate</td>
+						<td>${row['Charges']}</td>
+						<td>\$${row['Fine_Amount']}</td>
+						<td>
+ROW;
+				$table .= canPay($row, $auth);
+
+				$table .= <<<CCC
+						</td>
+					</tr>
+CCC;
+			}
+		}
+		$table .= "</table>";
+	}
+	else {
+		$courtId = (isset($_POST['courtId']) ? $_POST['courtId'] : "");
+		$courtName = (isset($courts[$courtId]) ? $courts[$courtId] : "that court");
+		$table = <<<NON
+			<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+				<tr>
+					<td>
+						<p>No records were found for that person in $courtName.</p>
+					</td>
+				</tr>
+			</table>
+NON;
+	}
+
+	return $table;
+}
 
 if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 
 	try {
-		$query = "select * from (select *, CASE WHEN contract_num = '' THEN 1 ELSE 0 END as IsCitation, CASE WHEN contract_num = '' THEN 0 ELSE 1 END as IsTimepay, 0 as IsWarrant from citation_test where CID = :cid1 and (last_name = :last_name1 or first_name = :first_name1) and date_of_birth = :dob1 and status = 'A' and fine_amount != '0' union all select *, 0 as IsCitation, 0 as IsTimepay, 1 as IsWarrant from warrant_test where CID = :cid2 and (last_name = :last_name2 or first_name = :first_name2) and date_of_birth = :dob2 and status = 'A' and fine_amount != '0') t order by IsWarrant DESC, IsTimepay DESC, IsCitation DESC;";
+		$query = 
+			"SELECT *
+			FROM
+				((SELECT *,
+					 GROUP_CONCAT(charges separator ', ') AS ChargesList,
+					 1 AS IsCitation,
+					 0 AS IsTimepay,
+					 0 AS IsWarrant
+				 FROM citation_test
+				 WHERE CID = :cid1
+					 AND (last_name = :last_name1
+						 OR first_name = :first_name1)
+					 AND date_of_birth = :dob1
+					 AND status = 'A'
+					 AND fine_amount != '0'
+					 AND contract_num = ''
+				 GROUP BY vjpid,
+					 case_number)
+				UNION ALL
+				(SELECT *,
+					 GROUP_CONCAT(charges separator ', ') AS ChargesList,
+					 0 AS IsCitation,
+					 1 AS IsTimepay,
+					 0 AS IsWarrant
+				 FROM citation_test
+				 WHERE CID = :cid2
+					 AND (last_name = :last_name2
+						 OR first_name = :first_name2)
+					 AND date_of_birth = :dob2
+					 AND status = 'A'
+					 AND (fine_amount != '0' OR min_payment != '0')
+					 AND contract_num != ''
+				 GROUP BY vjpid,
+					 contract_num)
+				 UNION ALL 
+				 (SELECT *,
+					 Charges,
+					 0 AS IsCitation,
+					 0 AS IsTimepay,
+					 1 AS IsWarrant
+				 FROM warrant_test
+				 WHERE CID = :cid3
+					 AND (last_name = :last_name3
+						 OR first_name = :first_name3)
+					 AND date_of_birth = :dob3
+					 AND status = 'A'
+					 AND fine_amount != '0')) as temp
+			 ORDER BY IsWarrant DESC,
+				 IsTimepay DESC,
+				 IsCitation DESC;";
 
 		$sth = $db->prepare($query);
 		$sth->execute(
@@ -61,19 +294,31 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 				':cid2' => $courtId,
 				':last_name2' => $lastName,
 				':first_name2' => $lastName,
-				':dob2' => $dob
+				':dob2' => $dob,
+				':cid3' => $courtId,
+				':last_name3' => $lastName,
+				':first_name3' => $lastName,
+				':dob3' => $dob
 			)
 		);
 		$searchResults = $sth->fetchAll(PDO::FETCH_ASSOC);
 		$searchResultsCount = count($searchResults);
 
 		//echo '<pre>';
-		//echo var_dump($searchResultsCount, $searchResults, isset($searchResults[0]['IsWarrant']), $searchResults[0]['IsWarrant']);
+		//echo var_dump($query, $searchResultsCount, $searchResults);
 		//echo '</pre>';
 		//exit;
 
-		// Is this a warrant?
-		if ($searchResultsCount > 0 && isset($searchResults[0]['IsWarrant']) && $searchResults[0]['IsWarrant']) {
+		// Did we find anything?
+		if ($searchResultsCount > 0) {
+
+			// What kind of record is this?
+			foreach (array("IsWarrant", "IsTimepay", "IsCitation") as $status) {
+				if (isset($searchResults[0][$status]) && $searchResults[0][$status]) {
+					$_SESSION[$status] = true;
+					$_SESSION['type'] = $status;
+				}
+			}
 
 			// Insert records into session
 			if (isset($_SESSION['Citations'])) {
@@ -115,6 +360,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 		<script type="text/javascript" src="/js/lib/jquery.validate.min.js"></script>
 		<script type="text/javascript" src="/js/lib/jquery.showhide-rules-1.2.js"></script>
 		<script type="text/javascript" src="/js/search-validate.js"></script>
+		<script type="text/javascript" src="/js/payment-submit.js"></script>
 		<script type="text/javascript">
 			$(document).ready(function(){
 				$("div.item").tooltip();
@@ -209,7 +455,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 										<strong style="color:#F00">Help</strong>
 										<div class="tooltip_description" style="display:none" title="" align="center">
 											Customer Support <br />
-											<b>867-5309<br />Email us: demoemail@nanddevelopment.com</b>
+											<b>867-5309<br />Email us: demo@nanddevelopment.com</b>
 										</div>
 									</div>
 								</td>
@@ -225,96 +471,12 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" || ($lastName != '' && $dob != '')) {
 			<div class="search" align="center">
 				<form method="post" action="checkout.php">
 					<?php
-						if ($searchResultsCount > 0) {
-							echo <<< BUT
-								<input type="submit" id="checkout" value="" />
-BUT;
+						echo '<input type="submit" id="checkout" value="" />';
 
-							echo <<< MSG
-								<h3>You must pay off all citations or timepay contracts asociated with this warrant. If you see any citations that you know you don't have to pay, then please call us at 867-5309.</h3>
-MSG;
-//'
-					?>
+						// Display a message based on the type of records
+						echo getMessage();
 
-					<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
-						<tr bgcolor="#366092" style="color:#FFF;" align="center">
-							<td>Name</td>
-							<td>Citation Number</td>
-							<td>Case Number</td>
-							<td>Violation Date</td>
-							<td>Court Date</td>
-							<td>Charges</td>
-							<td>Fine Amount</td>
-							<td>Select To Pay</td>
-						</tr>
-						<?php
-
-						foreach ($searchResults as $index => $row) {
-
-							$courtDate = ($row['Court_Date'] != '' ? $row['Court_Date'] : 'N/A');
-
-							echo <<< AAA
-								<tr>
-									<td>${row['Last_Name']}, ${row['First_Name']}</td>
-									<td>${row['Citation_Number']}</td>
-									<td>${row['Case_Number']}</td>
-									<td>${row['Violation_Date']}</td>
-									<td>$courtDate</td>
-									<td>${row['Charges']}</td>
-									<td>\$${row['Fine_Amount']}</td>
-									<td>
-AAA;
-
-							switch($row['CID']) { 
-								case '9': 
-									echo "For Benton County, Pea Ridge please call 479-451-1101";
-									break;
-								case '11': 
-									echo "For White County, Beebe please call 501-882-8110";
-									break;
-								case '13':
-									echo "For Ouachita County, Camden please call 870-836-0331";
-									break;
-								case '21': 
-									if (!$Auth->isAdmin()) {
-										echo "For Benton County, Cave Springs please call 1-877-689-5144";
-										break;
-									}
-								default: 
-									$isEnabled = ($Auth->isAdmin() ? "" : "disabled");
-									echo <<< BBB
-										<input type="checkbox" name="isPaying[$index]" value="true" $isEnabled checked />
-BBB;
-							}
-
-							echo <<< CCC
-									</td>
-								</tr>
-CCC;
-
-						}
-						?>
-					</table>
-					<br />
-
-					<?php
-					}
-					else {
-					?>
-
-					<table width="80%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
-						<tr>
-							<td>
-								<p>
-									<?php
-										echo "No records were found for that person in $courts[$courtId].";
-									?>
-								</p>
-							</td>
-						</tr>
-					</table>
-					<?php
-					}
+						echo getTable($searchResults, $auth, $courts);
 					?>
 				</form>
 			</div>

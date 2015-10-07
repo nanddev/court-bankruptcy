@@ -41,7 +41,7 @@ $Auth = new Auth();
 			<div class="login">
 				<div style="width: 30%; float: left;" align="right">
 					<a href="/index.php">
-						<img src="" width="165" height="123" border="0" />
+						<img src="/img/logo.gif" width="300" height="60" border="0" />
 					</a>
 				</div>                
 				<div align="center" style="width:50%; float:left; margin-left:20px;">
@@ -124,9 +124,7 @@ $Auth = new Auth();
 				</div>
 			</div>
 			<div style="clear:both"></div>
-			<div align="center" style=" padding:160px;">
-				All rights reserved <?php echo date('Y'); ?>. <a href="/disclaimer.php">Disclaimer</a>
-			</div>
+			<div align="center" style="padding: 80px;">&copy; <?php echo date('Y'); ?> NAND Development, LLC. All rights reserved. <a href="/disclaimer.php">Disclaimer</a>.</div>
 		</div>
 	</body>
 </html>

@@ -5,17 +5,17 @@ include($_SERVER['DOCUMENT_ROOT'] . '/includes/dbinfo-pdo.php');
 include($_SERVER['DOCUMENT_ROOT'] . '/includes/Auth.php');
 include($_SERVER['DOCUMENT_ROOT'] . '/includes/TransFirst.php');
 
-$Auth = new Auth();
+$auth = new Auth();
 
 // Remove any citations that aren't being paid (but only if this user is an admin)
-if ($Auth->isAdmin()) {
-	foreach ($_SESSION['Citations'] as $index => $citation) {
-		// This citation isn't checked to be paid so remove it from the session
-		if (!isset($_POST['isPaying'][$index])) {
-			unset($_SESSION['Citations'][$index]);
-		}
-	}
-}
+//if ($auth->isAdmin()) {
+//	foreach ($_SESSION['Citations'] as $index => $citation) {
+//		// This citation isn't checked to be paid so remove it from the session
+//		if (!isset($_POST['isPaying'][$index])) {
+//			unset($_SESSION['Citations'][$index]);
+//		}
+//	}
+//}
 
 // Session id is used to lookup citations the user is going to pay for 
 if (isset($_SESSION['sesid']) && empty($_SESSION['sesid'])) {
@@ -52,18 +52,21 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 		// Get out the citation info that was saved before form was submitted
 		$citationInfo = $_SESSION['citationInfo'];
 
+		$demo = true;
 		$debug = false;
 		$success = false;
 		$receiptNumber = strtoupper('CF-' . md5(uniqid(rand(), true)));
-		$emails = "jarrett.andrew@gmail.com, jnthomas8@gmail.com";
-		$debugEmails = "jarrett.andrew@gmail.com, jnthomas8@gmail.com";
-		$headers = "From: Demo Email <demoemail@nanddevelopment.com>\r\n";
+		$emails = "andrew@nanddevelopment.com, james@nanddevelopment.com";
+		$debugEmails = "andrew@nanddevelopment.com, james@nanddevelopment.com";
+		$headers = "From: Demo Email <demo@nanddevelopment.com>\r\n";
 		$headers .= "Content-type: text/html; charset=iso-8859-1\r\n";						
-		if (!$debug) {
-			$headers .= 'Bcc: ' . $emails . "\r\n";
-		}
-		else {
-			$headers .= 'Bcc: ' . $debugEmails . "\r\n";
+		if (!$demo) {
+			if (!$debug) {
+				$headers .= 'Bcc: ' . $emails . "\r\n";
+			}
+			else {
+				$headers .= 'Bcc: ' . $debugEmails . "\r\n";
+			}
 		}
 
 		// Send through the processing fee first
@@ -76,6 +79,7 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 		$expirationYear = $expiration[1];
 		$data['merchantId'] = 'xxxxxxxx'; // Business Merchant ID
 		$data['key'] = 'xxxxxxxx'; // Business Reg Key
+
 		if ($debug) {
 			// Debug information
 			$data['ccNum'] = '4111111111111111'; // Visa Test card number
@@ -103,304 +107,318 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 		$data['zipcode'] = htmlentities($_POST['zip']);
 		$data['receiptNumber'] = $receiptNumber;
 
-		$tf = new TransFirst();
-		$request = $tf->generateTransactionRequest($data);
-		$response = $client->SendTran($request);
-		$success = $tf->isSuccessful($response);
+		if (!$demo) {
+			$tf = new TransFirst();
+			$request = $tf->generateTransactionRequest($data);
+			$response = $client->SendTran($request);
+			$success = $tf->isSuccessful($response);
 
-		// If processing fee was successful, let's charge the fine amount
-		if ($success || $debug) {
+			// If processing fee was successful, let's charge the fine amount
+			if ($success || $debug) {
 
-			// Record the convenience fee
-			$sql = "insert into orders " .
-				"(name, email, phone, address, city, state, zip, citation_number, case_number, violation_date, court_date, charges, processing_fee, chargetotal, ws_response, receipt_number)" .
-				" values " .
-				"(:name, :email, :phone, :address1, :city, :state, :zipcode, :citation_num, :case_num, :violation_date, :court_date, :charges, :processing_fee, :total, :ws_response, :receipt_number)";
-			$statement = $db->prepare($sql);
-
-			try {
-
-				if (!$debug) {
-					$statement->execute(array(
-						':name' => $data['name'],
-						':email' => $data['email'],
-						':phone' => $data['phoneNumber'],
-						':address1' => $data['address1'],
-						':city' => $data['city'],
-						':state' => $data['state'],
-						':zipcode' => $data['zipcode'],
-						':citation_num' => '',
-						':case_num' => '',
-						':violation_date' => '',
-						':court_date' => '',
-						':charges' => '',
-						':processing_fee' => $citationInfo['ProcessingTotal'],
-						':total' => number_format(($data['total'] / 100), 2),
-						':ws_response' => serialize($response),
-						':receipt_number' => $receiptNumber
-					));
-				}
-
-			} catch (PDOException $e) {
-				echo $e->getMessage();
-				exit;
-			}
-
-			// Process each citation being paid for
-			foreach ($citationInfo['Citations'] as $citation) {
-
-				// Code to lookup Jurisdiction's merchant id
-				$courtId = $citation['CID'];
-				$jurisdiction = $citation['Jurisdiction'];
-
-				$sql = 'select merchant_id, reg_key, email from jurisdictions where cid = :courtId and jurisdiction = :jurisdiction';
+				// Record the convenience fee
+				$sql = "insert into orders " .
+					"(name, email, phone, address, city, state, zip, citation_number, case_number, violation_date, court_date, charges, processing_fee, chargetotal, ws_response, receipt_number)" .
+					" values " .
+					"(:name, :email, :phone, :address1, :city, :state, :zipcode, :citation_num, :case_num, :violation_date, :court_date, :charges, :processing_fee, :total, :ws_response, :receipt_number)";
 				$statement = $db->prepare($sql);
-				$statement->execute(array(':courtId'=>$courtId, ':jurisdiction'=>$jurisdiction));
-				$merchant = $statement->fetch();
 
-				if (!$debug) {
-					$data['merchantId'] = $merchant['merchant_id'];// Jurisdiction's Merchant ID
-					$data['key'] = $merchant['reg_key']; // Jurisdiction's Reg key
-					if (isset($_POST['customFineAmount']) && $_POST['customFineAmount'] != str_replace(',', '', $citationInfo['FineTotal'])) {
-						$data['total'] = '0' . ($_POST['customFineAmount'] * 100); // "Request Amount" Leading zero is required. This is in *pennies*
+				try {
+
+					if (!$debug) {
+						$statement->execute(array(
+							':name' => $data['name'],
+							':email' => $data['email'],
+							':phone' => $data['phoneNumber'],
+							':address1' => $data['address1'],
+							':city' => $data['city'],
+							':state' => $data['state'],
+							':zipcode' => $data['zipcode'],
+							':citation_num' => '',
+							':case_num' => '',
+							':violation_date' => '',
+							':court_date' => '',
+							':charges' => '',
+							':processing_fee' => $citationInfo['ProcessingTotal'],
+							':total' => number_format(($data['total'] / 100), 2),
+							':ws_response' => serialize($response),
+							':receipt_number' => $receiptNumber
+						));
 					}
-					else {
-						$data['total'] = '0' . (str_replace(',', '', $citation['FineAmount']) * 100); // "Request Amount" Leading zero is required. This is in *pennies*
-					}
+
+				} catch (PDOException $e) {
+					echo $e->getMessage();
+					exit;
 				}
 
-				$request = $tf->generateTransactionRequest($data);
-				$response = $client->SendTran($request);
-				$success = $tf->isSuccessful($response);
+				// Process each citation being paid for
+				foreach ($citationInfo['Citations'] as $citation) {
 
-				// If fine amount was successful, then send out the email receipt
-				if ($success || $debug) {
+					// Code to lookup Jurisdiction's merchant id
+					$courtId = $citation['CID'];
+					$jurisdiction = $citation['Jurisdiction'];
 
-					// Record the fine payment
-					$sql = "insert into orders " .
-						"(name, email, phone, address, city, state, zip, citation_number, case_number, violation_date, court_date, charges, fine_amount, chargetotal, ws_response, receipt_number)" .
-						" values " .
-						"(:name, :email, :phone, :address1, :city, :state, :zipcode, :citation_num, :case_num, :violation_date, :court_date, :charges, :fine_amount, :total, :ws_response, :receipt_number)";
+					$sql = 'select merchant_id, reg_key, email from jurisdictions where cid = :courtId and jurisdiction = :jurisdiction';
 					$statement = $db->prepare($sql);
+					$statement->execute(array(':courtId'=>$courtId, ':jurisdiction'=>$jurisdiction));
+					$merchant = $statement->fetch();
 
-					try {
+					if (!$debug) {
+						$data['merchantId'] = $merchant['merchant_id'];// Jurisdiction's Merchant ID
+						$data['key'] = $merchant['reg_key']; // Jurisdiction's Reg key
+						if (isset($_POST['customFineAmount']) && $_POST['customFineAmount'] != str_replace(',', '', $citationInfo['FineTotal'])) {
+							$data['total'] = '0' . ($_POST['customFineAmount'] * 100); // "Request Amount" Leading zero is required. This is in *pennies*
+						}
+						else {
+							$data['total'] = '0' . (str_replace(',', '', $citation['FineAmount']) * 100); // "Request Amount" Leading zero is required. This is in *pennies*
+						}
+					}
 
-						if (!$debug) {
-							$statement->execute(array(
-								':name' => $data['name'],
-								':email' => $data['email'],
-								':phone' => $data['phoneNumber'],
-								':address1' => $data['address1'],
-								':city' => $data['city'],
-								':state' => $data['state'],
-								':zipcode' => $data['zipcode'],
-								':citation_num' => $citation['CitationNumber'],
-								':case_num' => $citation['CaseNumber'],
-								':violation_date' => $citation['ViolationDate'],
-								':court_date' => $citation['CourtDate'],
-								':charges' => $citation['Charges'],
-								':fine_amount' => str_replace(',', '', $citation['FineAmount']),
-								':total' => number_format(($data['total'] / 100), 2),
-								':ws_response' => serialize($response),
-								':receipt_number' => $receiptNumber
-							));
+					$request = $tf->generateTransactionRequest($data);
+					$response = $client->SendTran($request);
+					$success = $tf->isSuccessful($response);
+
+					// If fine amount was successful, then send out the email receipt
+					if ($success || $debug) {
+
+						// Record the fine payment
+						$sql = "insert into orders " .
+							"(name, email, phone, address, city, state, zip, citation_number, case_number, violation_date, court_date, charges, fine_amount, chargetotal, ws_response, receipt_number)" .
+							" values " .
+							"(:name, :email, :phone, :address1, :city, :state, :zipcode, :citation_num, :case_num, :violation_date, :court_date, :charges, :fine_amount, :total, :ws_response, :receipt_number)";
+						$statement = $db->prepare($sql);
+
+						try {
+
+							if (!$debug) {
+								$statement->execute(array(
+									':name' => $data['name'],
+									':email' => $data['email'],
+									':phone' => $data['phoneNumber'],
+									':address1' => $data['address1'],
+									':city' => $data['city'],
+									':state' => $data['state'],
+									':zipcode' => $data['zipcode'],
+									':citation_num' => $citation['CitationNumber'],
+									':case_num' => $citation['CaseNumber'],
+									':violation_date' => $citation['ViolationDate'],
+									':court_date' => $citation['CourtDate'],
+									':charges' => $citation['Charges'],
+									':fine_amount' => str_replace(',', '', $citation['FineAmount']),
+									':total' => number_format(($data['total'] / 100), 2),
+									':ws_response' => serialize($response),
+									':receipt_number' => $receiptNumber
+								));
+							}
+
+						} catch (PDOException $e) {
+							echo $e->getMessage();
+							exit;
 						}
 
-					} catch (PDOException $e) {
-						echo $e->getMessage();
-						exit;
+						// Lookup the right email address for the court
+						$courtEmail = $merchant['email'];
+
+						if ($debug) {
+							$courtEmail = $debugEmails;
+						}
+
+						$courtSubject = 'Confirmation of Warrant Payment';
+						$message2court='
+								<table width="650" >
+				  <tr>
+					<td align="left" valign="middle"><table width="100%" >
+					  <tr>
+					<td>&nbsp;</td>
+					<td align="center" valign="middle"><h3>Warrant Payment Details</h3> </td>
+					<td>&nbsp;</td>
+					  </tr>
+					  <tr>
+					<td>&nbsp;</td>
+					<td><table width="100%" cellpadding="3" cellspacing="3" >
+					  <tr>
+						<td width="28%" align="right" valign="middle">&nbsp;</td>
+						<td width="72%" align="left" valign="middle">&nbsp;</td>
+					  </tr>
+					  <tr>
+						<td align="right" valign="middle">VJPID : </td>
+						<td align="left" valign="middle">&nbsp;'.$citationInfo["VJPID"].'</td>
+					  </tr>
+					  <tr>
+						<td align="right" valign="middle">Offender\'s Name: </td>
+						<td align="left" valign="middle">&nbsp;'.$citationInfo["FirstName"] . ' ' . $citationInfo["LastName"].'</td>
+					  </tr>
+					  <tr>
+						<td align="right" valign="top">Offender\'s Address: </td>
+						<td align="left" valign="top">&nbsp;'.
+						$citationInfo["Address"]. '<br/>&nbsp;' .
+						$citationInfo["City"] . ', ' . $citationInfo["State"] . ' ' . $citationInfo["Zip"].
+						'</td>
+					  </tr>
+					  <tr>
+						<td align="right" valign="middle">Citation Number: </td>
+						<td align="left" valign="middle">&nbsp;'.$citation["CitationNumber"].'</td>
+					  </tr>
+					  <tr>
+						<td align="right" valign="middle">Charges: </td>
+						<td align="left" valign="middle">&nbsp;'.$citation["Charges"].'</td>
+					  </tr>
+					  <tr>
+						<td align="right" valign="middle">Violation Date: </td>
+						<td align="left" valign="middle">&nbsp;'.$citation["ViolationDate"].'</td>
+					  </tr>
+					  <tr>
+						<td align="right" valign="middle">Court Date: </td>
+						<td align="left" valign="middle">&nbsp;'.($citation["CourtDate"] != '' ? $citation["CourtDate"] : "N/A").'</td>
+					  </tr>';
+						if (isset($_POST['customFineAmount']) && $_POST['customFineAmount'] != str_replace(',', '', $citationInfo['FineTotal'])) { $message2court .=  
+					  '<tr>
+						<td align="right" valign="middle">Fine Amount: </td>
+						<td align="left" valign="middle">&nbsp;$'.number_format($_POST['customFineAmount'], 2).'</td>
+					  </tr>'; }
+						else { $message2court .=  				  
+					  '<tr>
+						<td align="right" valign="middle">Fine Amount: </td>
+						<td align="left" valign="middle">&nbsp;$'.$citation["FineAmount"].'</td>
+					  </tr>'; }
+						$message2court .= 
+					  '<tr>
+						<td align="right" valign="middle">Date paid : </td>
+						<td align="left" valign="middle">&nbsp;'.date('m/d/Y').'</td>
+					  </tr>
+					</table></td>
+					<td>&nbsp;</td>
+					  </tr>
+					</table>
+				</td>
+				</tr>
+				</table>';
+
+						// Send Personal and Court receipts for this one citation
+						$sendmail2Court = mail($courtEmail, $courtSubject, $message2court, $headers);
 					}
-
-					// Lookup the right email address for the court
-					$courtEmail = $merchant['email'];
-
-					if ($debug) {
-						$courtEmail = $debugEmails;
-					}
-
-					$courtSubject = 'Confirmation of Warrant Payment';
-					$message2court='
-						    <table width="650" >
-			  <tr>
-			    <td align="left" valign="middle"><table width="100%" >
-			      <tr>
-				<td>&nbsp;</td>
-				<td align="center" valign="middle"><h3>Warrant Payment Details</h3> </td>
-				<td>&nbsp;</td>
-			      </tr>
-			      <tr>
-				<td>&nbsp;</td>
-				<td><table width="100%" cellpadding="3" cellspacing="3" >
-				  <tr>
-				    <td width="28%" align="right" valign="middle">&nbsp;</td>
-				    <td width="72%" align="left" valign="middle">&nbsp;</td>
-				  </tr>
-				  <tr>
-				    <td align="right" valign="middle">VJPID : </td>
-				    <td align="left" valign="middle">&nbsp;'.$citationInfo["VJPID"].'</td>
-				  </tr>
-				  <tr>
-				    <td align="right" valign="middle">Offender\'s Name: </td>
-				    <td align="left" valign="middle">&nbsp;'.$citationInfo["FirstName"] . ' ' . $citationInfo["LastName"].'</td>
-				  </tr>
-				  <tr>
-				    <td align="right" valign="top">Offender\'s Address: </td>
-				    <td align="left" valign="top">&nbsp;'.
-					$citationInfo["Address"]. '<br/>&nbsp;' .
-					$citationInfo["City"] . ', ' . $citationInfo["State"] . ' ' . $citationInfo["Zip"].
-				    '</td>
-				  </tr>
-				  <tr>
-				    <td align="right" valign="middle">Citation Number: </td>
-				    <td align="left" valign="middle">&nbsp;'.$citation["CitationNumber"].'</td>
-				  </tr>
-				  <tr>
-				    <td align="right" valign="middle">Charges: </td>
-				    <td align="left" valign="middle">&nbsp;'.$citation["Charges"].'</td>
-				  </tr>
-				  <tr>
-				    <td align="right" valign="middle">Violation Date: </td>
-				    <td align="left" valign="middle">&nbsp;'.$citation["ViolationDate"].'</td>
-				  </tr>
-				  <tr>
-				    <td align="right" valign="middle">Court Date: </td>
-				    <td align="left" valign="middle">&nbsp;'.($citation["CourtDate"] != '' ? $citation["CourtDate"] : "N/A").'</td>
-				  </tr>';
-					if (isset($_POST['customFineAmount']) && $_POST['customFineAmount'] != str_replace(',', '', $citationInfo['FineTotal'])) { $message2court .=  
-				  '<tr>
-				    <td align="right" valign="middle">Fine Amount: </td>
-				    <td align="left" valign="middle">&nbsp;$'.number_format($_POST['customFineAmount'], 2).'</td>
-				  </tr>'; }
-					else { $message2court .=  				  
-				  '<tr>
-				    <td align="right" valign="middle">Fine Amount: </td>
-				    <td align="left" valign="middle">&nbsp;$'.$citation["FineAmount"].'</td>
-				  </tr>'; }
-					$message2court .= 
-				  '<tr>
-				    <td align="right" valign="middle">Date paid : </td>
-				    <td align="left" valign="middle">&nbsp;'.date('m/d/Y').'</td>
-				  </tr>
-				</table></td>
-				<td>&nbsp;</td>
-			      </tr>
-			    </table>
-			</td>
-			</tr>
-			</table>';
-
-					// Send Personal and Court receipts for this one citation
-					$sendmail2Court = mail($courtEmail, $courtSubject, $message2court, $headers);
 				}
 			}
-		}
 
-		if ($success || $debug) {
-			// Everythin processed correctly, so send off the customer's personal receipt
-			$customerName = stripslashes($data['name']);
-			$customerEmail = stripslashes($data['email']);
+			if ($success || $debug) {
+				// Everythin processed correctly, so send off the customer's personal receipt
+				$customerName = stripslashes($data['name']);
+				$customerEmail = stripslashes($data['email']);
 
-			$customerSubject = 'Personal Receipt - Warrant Payment Details';
+				$customerSubject = 'Personal Receipt - Warrant Payment Details';
 
-			$citationList = '';
-			foreach ($citationInfo['Citations'] as $citation) {
-				$citationList .= '<tr>';
-				$citationList .= "<td>${citation['CitationNumber']}</td>";
-				$citationList .= "<td><em>${citation['Charges']}</em></td>";
-				$citationList .= "<td align=\"right\">$${citation['FineAmount']}</td>";
-				$citationList .= '</tr>';
+				$citationList = '';
+				foreach ($citationInfo['Citations'] as $citation) {
+					$citationList .= '<tr>';
+					$citationList .= "<td>${citation['CitationNumber']}</td>";
+					$citationList .= "<td><em>${citation['Charges']}</em></td>";
+					$citationList .= "<td align=\"right\">$${citation['FineAmount']}</td>";
+					$citationList .= '</tr>';
+				}
+
+				$message2Customer = '<table width="650" >
+			  <tr>
+				<td align="left" valign="middle"><table width="100%" >
+				  <tr>
+				<td>&nbsp;</td>
+				<td align="center" valign="middle"><h3>Warrant Payment Details</h3>
+				  </td>
+				<td>&nbsp;</td>
+				  </tr>
+				  <tr>
+				<td>&nbsp;</td>
+				<td><table width="100%" cellpadding="3" cellspacing="3">
+				  <tr>
+					<td align="right" valign="middle">Receipt Number: </td>
+					<td align="left" valign="middle">'.stripslashes($receiptNumber).'</td>
+				  </tr>
+				  <tr>
+					<td align="right" valign="middle">Name: </td>
+					<td align="left" valign="middle">'.stripslashes($data["name"]).'</td>
+				  </tr>
+				  <tr>
+					<td align="right" valign="middle">Email: </td>
+					<td align="left" valign="middle">'.stripslashes($data["email"]).'</td>
+				  </tr>
+				  <tr>
+					<td align="right" valign="middle">Phone: </td>
+					<td align="left" valign="middle">'.stripslashes($data["phoneNumber"]).'</td>
+				  </tr>		   
+				  <tr>
+					<td align="right" valign="top">Address: </td>
+					<td align="left" valign="top">'
+					.stripslashes($data["address1"]).'<br/>'
+					.stripslashes($data["city"] . ', ' . $data["state"] . ' ' . $data["zipcode"])
+				  .'</td>
+				  </tr>
+				  <tr>
+					<td colspan="2">
+					  <table>
+					<tr>
+					  <td align="middle"><strong>Citation Number</strong></td>
+					  <td align="middle"><strong>Charges</strong></td>
+					  <td align="middle"><strong>Fine Amount</strong></td>
+					</tr>' . $citationList;
+						if (isset($_POST['customFineAmount']) && $_POST['customFineAmount'] != str_replace(',', '', $citationInfo['FineTotal'])) { 
+							$message2Customer .=  
+					  '<tr>
+						<td align="right" valign="middle" colspan="2">Fine Total: </td>
+						<td align="right" valign="middle">&nbsp;$'.number_format($_POST['customFineAmount'], 2).'</td>
+					  </tr>'; }
+						else { $message2Customer .=  				  
+					  '<tr>
+						<td align="right" valign="middle" colspan="2">Fine Total: </td>
+						<td align="right" valign="middle">&nbsp;$'.$citationInfo["FineTotal"].'</td>
+					  </tr>'; }
+						$message2Customer .= 
+					'<tr>
+					  <td colspan="2" align="right">Processing Fee: </td>
+					  <td align="right">$'. stripslashes($citationInfo["ProcessingTotal"]).'</td>
+					</tr>
+					<tr>
+					  <td colspan="2" align="right">Total Amount: </td>
+					  <td align="right"><strong>$'. stripslashes($citationInfo["Total"]).'</strong></td>
+					</tr>
+					  </table>
+					</td>
+				  </tr>
+				</table>
+				   </td>
+				<td>&nbsp;</td>
+				  </tr>
+				</table></td>
+			  </tr>
+			</table>';
+
+				// Send Personal receipt
+				$sendmail2Customer = mail($customerEmail, $customerSubject, $message2Customer, $headers);
 			}
 
-			$message2Customer = '<table width="650" >
-		  <tr>
-		    <td align="left" valign="middle"><table width="100%" >
-		      <tr>
-			<td>&nbsp;</td>
-			<td align="center" valign="middle"><h3>Warrant Payment Details</h3>
-			  </td>
-			<td>&nbsp;</td>
-		      </tr>
-		      <tr>
-			<td>&nbsp;</td>
-			<td><table width="100%" cellpadding="3" cellspacing="3">
-			  <tr>
-			    <td align="right" valign="middle">Receipt Number: </td>
-			    <td align="left" valign="middle">'.stripslashes($receiptNumber).'</td>
-			  </tr>
-			  <tr>
-			    <td align="right" valign="middle">Name: </td>
-			    <td align="left" valign="middle">'.stripslashes($data["name"]).'</td>
-			  </tr>
-			  <tr>
-			    <td align="right" valign="middle">Email: </td>
-			    <td align="left" valign="middle">'.stripslashes($data["email"]).'</td>
-			  </tr>
-			  <tr>
-			    <td align="right" valign="middle">Phone: </td>
-			    <td align="left" valign="middle">'.stripslashes($data["phoneNumber"]).'</td>
-			  </tr>		   
-			  <tr>
-			    <td align="right" valign="top">Address: </td>
-			    <td align="left" valign="top">'
-				.stripslashes($data["address1"]).'<br/>'
-				.stripslashes($data["city"] . ', ' . $data["state"] . ' ' . $data["zipcode"])
-			  .'</td>
-			  </tr>
-			  <tr>
-			    <td colspan="2">
-			      <table>
-				<tr>
-				  <td align="middle"><strong>Citation Number</strong></td>
-				  <td align="middle"><strong>Charges</strong></td>
-				  <td align="middle"><strong>Fine Amount</strong></td>
-				</tr>' . $citationList;
-					if (isset($_POST['customFineAmount']) && $_POST['customFineAmount'] != str_replace(',', '', $citationInfo['FineTotal'])) { 
-						$message2Customer .=  
-				  '<tr>
-				    <td align="right" valign="middle" colspan="2">Fine Total: </td>
-				    <td align="right" valign="middle">&nbsp;$'.number_format($_POST['customFineAmount'], 2).'</td>
-				  </tr>'; }
-					else { $message2Customer .=  				  
-				  '<tr>
-				    <td align="right" valign="middle" colspan="2">Fine Total: </td>
-				    <td align="right" valign="middle">&nbsp;$'.$citationInfo["FineTotal"].'</td>
-				  </tr>'; }
-					$message2Customer .= 
-				'<tr>
-				  <td colspan="2" align="right">Processing Fee: </td>
-				  <td align="right">$'. stripslashes($citationInfo["ProcessingTotal"]).'</td>
-				</tr>
-				<tr>
-				  <td colspan="2" align="right">Total Amount: </td>
-				  <td align="right"><strong>$'. stripslashes($citationInfo["Total"]).'</strong></td>
-				</tr>
-			      </table>
-			    </td>
-			  </tr>
-			</table>
-		       </td>
-			<td>&nbsp;</td>
-		      </tr>
-		    </table></td>
-		  </tr>
-		</table>';
+			// There was an error
+			if (!$success && !$debug) {
+				$paymentErrorMessage = "<h2 style='color: red;'>There was an error processing your payment. Please try again or call our toll free support at 1-877-689-5144</h2>";
+			}
+			else {
+				// Save relevant info for the confirmation page
+				$data['ccNum'] = "************".substr($data['ccNum'], strlen($data['ccNum'])-4, 4);
+				$_SESSION['data'] = $data;
+				$_SESSION['response'] = $response;
+				$_SESSION['receiptNumber'] = $receiptNumber;
 
-			// Send Personal receipt
-			$sendmail2Customer = mail($customerEmail, $customerSubject, $message2Customer, $headers);
-		}
-
-		// There was an error
-		if (!$success && !$debug) {
-			$paymentErrorMessage = "<h2 style='color: red;'>There was an error processing your payment. Please try again or call our toll free support at 1-877-689-5144</h2>";
+				// We're done processing the order. Show the confirmation page.
+				header("Location: confirmation.php");
+			}
 		}
 		else {
 			// Save relevant info for the confirmation page
 			$data['ccNum'] = "************".substr($data['ccNum'], strlen($data['ccNum'])-4, 4);
 			$_SESSION['data'] = $data;
-			$_SESSION['response'] = $response;
+			$_SESSION['response'] = (object) array('rspCode'=>'00'); // Pretend like it was successful
 			$_SESSION['receiptNumber'] = $receiptNumber;
 
-			// We're done processing the order. Show the confirmation page.
+			// Send email
+			$sendmail2Us = mail("demo@nanddevelopment.com", "New Demo email submitted", "Demo email submitted for court.nanddevelopment.com by " . stripslashes($data['name']) . " (" . stripslashes($data['email']) . ").", $headers);
+
 			header("Location: confirmation.php");
 		}
 	}
@@ -513,7 +531,7 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
                                                 $('#processing').hide();
                                                 alert(errorMessage);
                                         }
-                                        e.preventDefault;
+                                        e.preventDefault();
                                         return false;
                                 });
 
@@ -549,7 +567,7 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 				<div class="head">
 					<div style="width:40%; float:left" >
 						<a href="/index.php">
-							<img src="" width="165" height="123" border="0" style="vertical-align: middle;" />
+							<img src="/img/logo.gif" width="300" height="60" border="0" style="vertical-align: middle;" />
 						</a>
 					</div>                
 					<div align="right" style="width:50%; float:left">
@@ -563,15 +581,10 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 					<tr>
 						<td width="18%" align="center" valign="middle">&nbsp;</td>
 						<td width="82%">
-							<table width="90%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
-								<tr bgcolor="#366092" style="color:#FFF;" align="center">
-									<td>Citation Number</td>
-									<td>Violation Date</td>
-									<td>Court Date</td>
-									<td>Charges</td>
-									<td>Fine Amount</td>
-								</tr>
 <?php
+// We filter out the citations we didn't check to pay
+filterCitations();
+
 $citationInfo = array();
 $citationsToPay = $_SESSION['Citations'];
 $citationInfo['Citations'] = array();
@@ -609,23 +622,11 @@ foreach ($citationsToPay as $citationRow) {
 	$citationInfo['Zip'] = $citationRow['Zip'];
 	$citationInfo['FineTotal'] = $citationInfo['FineTotal'] + $FineAmount;
 	$citationInfo['Total'] = $citationInfo['FineTotal'];
-
-	// Print this citation info to the page
-	$displayInfo = array(
-		stripslashes($citation['CitationNumber']),
-		stripslashes($citation['ViolationDate']),
-		stripslashes($citation['CourtDate']),
-		stripslashes($citation['Charges']),
-		'$' . stripslashes($citation['FineAmount'])
-	);
-	echo '<tr>';
-	foreach ($displayInfo as $info) {
-		echo "<td>$info</td>";
-	}
-	echo '</tr>';
 }
 
-if($citationInfo['FineTotal'] < 100) {
+echo getTable($auth);
+
+if ($citationInfo['FineTotal'] < 100) {
 	$citationInfo['ProcessingTotal'] = 4.0 + (ceil((4.0+$citationInfo['FineTotal'])*003.8) / 100);
 } else {
 	$citationInfo['ProcessingTotal'] = 8.0 + (ceil((8.0+$citationInfo['FineTotal'])*004.0) / 100);
@@ -641,18 +642,6 @@ $citationInfo['Total'] = number_format($citationInfo['Total'], 2);
 // Save the $citationInfo variable to the session so we have this info when the payment is processed
 $_SESSION['citationInfo'] = $citationInfo;
 ?>
-								<tr>
-									<td colspan="5">&nbsp;</td>
-								</tr>
-								<tr>
-						<td colspan="3">
-							<span id="last"><?php echo $citationInfo['LastName']; ?></span>, <span id="first"><?php echo $citationInfo['FirstName']; ?></span><br />
-							Address: <span id="address"><?php echo $citationInfo['Address']; ?></span><br/>
-							<span id="city"><?php echo $citationInfo['City']; ?></span>, <span id="state"><?php echo $citationInfo['State']; ?></span> <span id="zip"><?php echo $citationInfo['Zip']; ?></span>
-						</td>
-						<td colspan="2"><input name="sameAsBilling" type="checkbox" value="false" id="sameAsBilling" /> <label for="sameAsBilling">Is this your current mailing address?</label></td>
-					</tr>
-				</table>
 			</td>
 		</tr>
 	</table>
@@ -669,17 +658,17 @@ Phone Number<span class="style1">*</span>&nbsp;&nbsp;
 </div>
 
 <?php 
-if ($Auth->isAdmin()) {
+if ($auth->isAdmin()) {
 	if (!isset($_POST['customFineAmount'])) $_POST['customFineAmount'] = str_replace(',', '', $citationInfo['FineTotal']);
-	echo <<< ADM
-<div style="padding-left: 140px; padding-top: 10px; padding-bottom: 15px; background-color: #f2f2f2;">
-<h3>Admin Only</h3>
-<p style="width:80%;">
-	<label for="customFineAmount">Custom Fine Amount</label>
-	<input name="customFineAmount" type="text" id="customFineAmount"  value="${_POST['customFineAmount']}" onkeydown="javascript:updateTotal();" onpaste="javascript:updateTotal();" oninput="javascript:updateTotal();" onchange="javascript:updateTotal();" />
-</p>
-</div>
-<p>&nbsp;</p>
+	echo <<<ADM
+	<div style="padding-left: 140px; padding-top: 10px; padding-bottom: 15px; background-color: #f2f2f2;">
+		<h3>Admin Only</h3>
+		<p style="width:80%;">
+			<label for="customFineAmount">Custom Fine Amount</label>
+			<input name="customFineAmount" type="text" id="customFineAmount"  value="${_POST['customFineAmount']}" onkeydown="javascript:updateTotal();" onpaste="javascript:updateTotal();" oninput="javascript:updateTotal();" onchange="javascript:updateTotal();" />
+		</p>
+	</div>
+	<p>&nbsp;</p>
 ADM;
 }
 ?>
@@ -819,8 +808,163 @@ ADM;
 	</tr>
 	</table>
 	</div>
-				<div align="center" style=" padding:80px;">All rights reserved <?php echo date('Y'); ?>. <a href="/disclaimer.php">Disclaimer</a></div>
+				<div align="center" style="padding: 80px;">&copy; <?php echo date('Y'); ?> NAND Development, LLC. All rights reserved. <a href="/disclaimer.php">Disclaimer</a>.</div>
 			</div>
 		</form>
 	</body>
 </html>
+
+<?php
+
+// Filters out the citations that were not checked to pay
+function filterCitations() {
+
+	// Check if we have already filtered
+	if (!isset($_POST['isPaying'])) {
+		$_SESSION['Citations'] = $_SESSION['citationInfo']['Citations'];
+	}
+	else {
+		$count = count($_SESSION['Citations']);
+		foreach ($_SESSION['Citations'] as $index => $array) {
+			$id = $_SESSION['Citations'][$index]['id'];
+			if (!isset($_POST['isPaying'][$id])) {
+				unset($_SESSION['Citations'][$index]);
+			}
+		}
+	}
+}
+
+// This will generate the table of records to pay based on type of record found.
+function getTable($auth) {
+	$table = "";
+
+	$citations = $_SESSION['Citations'];
+
+	// Make sure we have some type of record
+	if (count($citations) > 0) {
+
+		// Figure out how many columns are in this table
+		$leftCols = 0;
+		$rightCols = 0;
+
+		// Display the records differently based on their type
+		if ($_SESSION['IsWarrant']) {
+			$leftCols = 3;
+			$rightCols = 2;
+
+			$table = <<<HED
+				<table width="90%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+					<tr bgcolor="#366092" style="color:#FFF;" align="center">
+						<td>Name</td>
+						<td>Citation Number</td>
+						<td>Case Number</td>
+						<td>Charges</td>
+						<td>Fine Amount</td>
+					</tr>
+HED;
+
+			foreach ($citations as $index => $row) {
+				$table .= <<<ROW
+					<tr>
+						<td>${row['Last_Name']}, ${row['First_Name']}</td>
+						<td>${row['Citation_Number']}</td>
+						<td>${row['Case_Number']}</td>
+						<td>${row['Charges']}</td>
+						<td>\$${row['Fine_Amount']}</td>
+					</tr>
+ROW;
+			}
+		}
+		// Display Timepay format if this only has timepay records
+		else if ($_SESSION['IsTimepay']) {
+			$leftCols = 2;
+			$rightCols = 2;
+
+			$table = <<<HED
+				<table width="90%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+					<tr bgcolor="#366092" style="color:#FFF;" align="center">
+						<td>Name</td>
+						<td>Contract Number</td>
+						<td>Charges</td>
+						<td width="10%">Minimum Payment</td>
+					</tr>
+HED;
+
+			foreach ($citations as $index => $row) {
+				$table .= <<<ROW
+					<tr>
+						<td>${row['Last_Name']}, ${row['First_Name']}</td>
+						<td>${row['Contract_Num']}</td>
+						<td>${row['ChargesList']}</td>
+						<td>\$${row['Min_Payment']}</td>
+					</tr>
+ROW;
+			}
+		}
+		// Display Citation format if this is only has citation records
+		else if ($_SESSION['IsCitation']) {
+			$leftCols = 3;
+			$rightCols = 2;
+
+			$table = <<<HED
+				<table width="90%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+					<tr bgcolor="#366092" style="color:#FFF;" align="center">
+						<td>Name</td>
+						<td>Citation Number</td>
+						<td>Case Number</td>
+						<td>Charges</td>
+						<td>Fine Amount</td>
+					</tr>
+HED;
+
+			foreach ($citations as $index => $row) {
+				$table .= <<<ROW
+					<tr>
+						<td>${row['Last_Name']}, ${row['First_Name']}</td>
+						<td>${row['Citation_Number']}</td>
+						<td>${row['Case_Number']}</td>
+						<td>${row['Charges']}</td>
+						<td>\$${row['Fine_Amount']}</td>
+					</tr>
+ROW;
+			}
+		}
+		$columns = $leftCols + $rightCols;
+		$citationInfo = $_SESSION['citationInfo'];
+		$table .= <<<ADR
+			<tr>
+				<td colspan="$columns">&nbsp;</td>
+			</tr>
+			<tr>
+				<td colspan="$leftCols">
+					<span id="last">${citationInfo['LastName']}</span>, 
+					<span id="first">${citationInfo['FirstName']}</span><br />
+					Address: <span id="address">${citationInfo['Address']}</span><br/>
+					<span id="city">${citationInfo['City']}</span>,
+					<span id="state">${citationInfo['State']}</span> 
+					<span id="zip">${citationInfo['Zip']}</span>
+				</td>
+				<td colspan="$rightCols">
+					<input name="sameAsBilling" type="checkbox" value="false" id="sameAsBilling" />
+					 <label for="sameAsBilling">Is this your current mailing address?</label>
+				 </td>
+			</tr>
+		</table>
+ADR;
+	}
+	else {
+		$table = <<<NON
+			<table width="90%" border="0" cellspacing="4" cellpadding="4" style="border:1px solid #999">
+				<tr>
+					<td>
+						<p>Please go back and select a record to pay.</p>
+					</td>
+				</tr>
+			</table>
+NON;
+	}
+
+	return $table;
+}
+
+?>

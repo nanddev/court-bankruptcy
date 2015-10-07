@@ -12,6 +12,11 @@ $data = $_SESSION['data'];
 $citationInfo = $_SESSION['citationInfo'];
 $receiptNumber = $_SESSION['receiptNumber'];
 
+//echo '<pre>';
+//echo var_dump($citationInfo, $receiptNumber, $data, $success, $response);
+//echo '</pre>';
+//exit;
+
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -25,7 +30,9 @@ $receiptNumber = $_SESSION['receiptNumber'];
 		<div id="main">
 			<div class="head">
 				<div style="width: 40%; float: left">
-					<a href="/index.php"><img src="" width="165" height="123" border="0" style="vertical-align: middle;" /></a>
+					<a href="/index.php">
+							<img src="/img/logo.gif" width="300" height="60" border="0" style="vertical-align: middle;" />
+					</a>
 				</div>                
 				<div align="right" style="width: 50%; float: left">
 					<u><a href="/index.php">Home</a></u>
@@ -98,6 +105,15 @@ AAA;
 						<td width="20%"><img src="/css/images/Picture2.png" width="170" height="30" /></td>
 					</tr>
 					<tr>
+						<td colspan="3">
+<?php
+	if ($success) 
+		echo "<h2><strong>Receipt Number: ".$receiptNumber."</strong></h2>";
+?>		
+						</td>
+						<td>&nbsp;</td>
+					</tr>
+					<tr>
 						<td>&nbsp;</td>
 						<td rowspan="3"> 
 							<table width="100%" border="0" cellspacing="3" cellpadding="3">
@@ -141,20 +157,11 @@ AAA;
 						<td>&nbsp;</td>
 					</tr>
 					<tr>
-						<td colspan="3">
-<?php
-	if ($success) 
-		echo "<h2><strong>Receipt Number: ".$receiptNumber."</strong></h2>";
-?>		
-						</td>
-						<td>&nbsp;</td>
-					</tr>
-					<tr>
 						<td colspan="2">&nbsp;</td>
 					</tr>
 				</table>
 			</div>
-			<div align="center" style=" padding: 80px;">All rights reserved <?php echo date('Y'); ?>. <a href="/disclaimer.php">Disclaimer</a></div>
+			<div align="center" style="padding: 80px;">&copy; <?php echo date('Y'); ?> NAND Development, LLC. All rights reserved. <a href="/disclaimer.php">Disclaimer</a>.</div>
 		</div>
 	</body>
 </html>

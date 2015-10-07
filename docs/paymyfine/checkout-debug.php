@@ -549,7 +549,7 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 				<div class="head">
 					<div style="width:40%; float:left" >
 						<a href="/index.php">
-							<img src="" width="165" height="123" border="0" style="vertical-align: middle;" />
+							<img src="/img/logo.gif" width="300" height="60" border="0" style="vertical-align: middle;" />
 						</a>
 					</div>                
 					<div align="right" style="width:50%; float:left">
@@ -819,7 +819,7 @@ ADM;
 	</tr>
 	</table>
 	</div>
-				<div align="center" style=" padding:80px;">All rights reserved <?php echo date('Y'); ?>. <a href="/disclaimer.php">Disclaimer</a></div>
+				<div align="center" style="padding: 80px;">&copy; <?php echo date('Y'); ?> NAND Development, LLC. All rights reserved. <a href="/disclaimer.php">Disclaimer</a>.</div>
 			</div>
 		</form>
 	</body>
