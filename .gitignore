@@ -7,7 +7,9 @@ app/
 docs/includes/dbinfo*
 
 # Don't keep a backup of the database
-scripts/new_db/backupfile.sql
+scripts/new_db/*
+scripts/govpay_final/*
+scripts/trial_and_error/*
 
 # We don't want vim .swp files in the repo
 *.swp
