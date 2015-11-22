@@ -10,6 +10,7 @@ docs/includes/dbinfo*
 scripts/new_db/*
 scripts/govpay_final/*
 scripts/trial_and_error/*
+scripts/python_test/*
 
 # We don't want vim .swp files in the repo
 *.swp
