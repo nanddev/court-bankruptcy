@@ -70,14 +70,11 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 		$expiration = explode('/', $_POST['exp_date']);
 		$expirationMonth = $expiration[0];
 		$expirationYear = $expiration[1];
-		$data['merchantId'] = 'xxxxxxxx'; // Business Merchant ID
-		$data['key'] = 'xxxxxxxx'; // Business Reg key
+		$data['merchantId'] = TransFirst::$courtMerchantId; // Business Merchant ID
+		$data['key'] = TransFirst::$courtKey; // Business Reg Key
 		if ($debug) {
 			// Debug information
-			//$data['merchantId'] = '7777777914'; // Test Merchant ID
-			//$data['key'] = 'DD8ZARBGKWSWZ3XK'; // Test Reg Key
 			$data['ccNum'] = '4111111111111111'; // Visa Test card number
-			//$data['ccNum'] = '5499740000000057'; // MasterCard Test card number
 			$data['cvv'] = '123'; // Any cvv code
 			$data['expiration'] = '1306'; // Any future expiration date
 			$data['expirationMonth'] = '06'; // Displayed on confirmation page

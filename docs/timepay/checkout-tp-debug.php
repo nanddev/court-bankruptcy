@@ -70,8 +70,8 @@ if (isset($_POST['process']) && $_POST['process'] == 'payment' && $valid) {
 		$expiration = explode('/', $_POST['exp_date']);
 		$expirationMonth = $expiration[0];
 		$expirationYear = $expiration[1];
-		$data['merchantId'] = 'xxxxxxxx'; // Business Merchant ID
-		$data['key'] = 'xxxxxxxx'; // Business Reg key
+		$data['merchantId'] = TransFirst::$courtMerchantId; // Business Merchant ID
+		$data['key'] = TransFirst::$courtKey; // Business Reg Key
 		if ($debug) {
 			// Debug information
 			//$data['merchantId'] = '7777777914'; // Test Merchant ID

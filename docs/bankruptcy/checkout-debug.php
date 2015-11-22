@@ -60,8 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $valid) {
 		$expirationYear = $expiration[1];
 
 		$billingInfo = array();
-		$billingInfo['merchantId'] = 'xxxxxxxx'; // "Chapter 13" Merchant ID
-		$billingInfo['key'] = 'xxxxxxxx'; // "Chapter 13" Reg key
+		$billingInfo['merchantId'] = TransFirst::$ch13MerchantId; // "Chapter 13" Merchant ID
+		$billingInfo['key'] = TransFirst::$ch13Key; // "Chapter 13" Reg key
 		$billingInfo['receiptNumber'] = $receiptNumber;
 		$billingInfo['ccNum'] = $_POST['card_number'];
 		$billingInfo['cvv'] = $_POST["cvv"];

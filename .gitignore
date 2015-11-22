@@ -4,6 +4,18 @@ data/
 # We don't need to store htpasswd files in the repo
 security/
 
+# We don't want to store the laravel app rewrite yet
+app/
+
+# Don't store db password files
+docs/includes/dbinfo*
+
+# Don't keep a backup of the database
+scripts/new_db/backupfile.sql
+
+# Ignore the /security directory
+security/
+
 # We don't want vim .swp files in the repo
 *.swp
 
